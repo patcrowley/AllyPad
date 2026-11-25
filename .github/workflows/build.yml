@@ -5,6 +5,8 @@ on:
     branches: [main]
     tags: ["v*"]
   pull_request:
+  release:
+    types: [published]
 
 jobs:
   windows:
@@ -34,4 +36,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create $env:GITHUB_REF_NAME AllyPad.zip --title "AllyPad $env:GITHUB_REF_NAME" --notes-file RELEASE_NOTES.md
+          # Attach the build to the release for this tag, creating the release if needed.
+          gh release upload $env:GITHUB_REF_NAME AllyPad.zip --clobber
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $env:GITHUB_REF_NAME AllyPad.zip --title "AllyPad $env:GITHUB_REF_NAME" --notes-file RELEASE_NOTES.md
+          }
