@@ -140,6 +140,11 @@ Install Rust from https://rustup.rs, then in this folder:
 The programs appear in `target\release`. `cargo test` runs the protocol,
 receiver and input-shaping tests on any OS.
 
+## Support
+
+AllyPad is free. If you find it useful and want to support it, you can pay
+what you like on Gumroad: https://patcrowley.gumroad.com/l/rvxlup
+
 ## Credits
 
 - Virtual controller: ViGEmBus by Nefarius, via the `vigem-client` crate.
