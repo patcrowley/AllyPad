@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>AllyPad</title>
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<style>
+@font-face{font-family:"Barlow SC";font-weight:500;src:url(/fonts/barlow-semi-condensed-500.woff2) format("woff2");font-display:block}
+@font-face{font-family:"Barlow SC";font-weight:700;src:url(/fonts/barlow-semi-condensed-700.woff2) format("woff2");font-display:block}
+@font-face{font-family:"Bricolage";font-weight:500;src:url(/fonts/bricolage-grotesque-500.woff2) format("woff2");font-display:block}
+@font-face{font-family:"Bricolage";font-weight:700;src:url(/fonts/bricolage-grotesque-700.woff2) format("woff2");font-display:block}
+@font-face{font-family:"Chakra";font-weight:500;src:url(/fonts/chakra-petch-500.woff2) format("woff2");font-display:block}
+@font-face{font-family:"Chakra";font-weight:700;src:url(/fonts/chakra-petch-700.woff2) format("woff2");font-display:block}
+
+/* ---- Looks ------------------------------------------------------------ */
+/* Faceplate: a piece of studio hardware. Slate panel, amber readouts. */
+:root,[data-look=faceplate]{
+  --bg:#1b2330;--panel:#242e3e;--raise:#2e3a4e;--line:#3d4c64;--text:#ece6d8;--dim:#93a1b6;
+  --accent:#f5b83d;--accent-ink:#231a05;--live:#f5b83d;--ok:#5fd0b4;--bad:#f0705a;
+  --r:.35rem;--r-big:.5rem;--bw:1px;--font:"Barlow SC","Bahnschrift","Segoe UI",sans-serif;
+  --key-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 2px 0 rgba(0,0,0,.35);
+  --pad-tex:radial-gradient(circle,rgba(236,230,216,.13) 1px,transparent 1.4px) 0 0/1.25rem 1.25rem;
+  --track:.2rem;--thumb-r:.2rem;--title-sp:.01em;
+}
+/* Daylight: a matte desk gadget. Cool grey shell, one orange key. */
+[data-look=daylight]{
+  --bg:#dfe3e7;--panel:#eef0f2;--raise:#fbfbfc;--line:#bcc4cc;--text:#14181d;--dim:#5b6570;
+  --accent:#ff4a1c;--accent-ink:#fff;--live:#e03a10;--ok:#0b8a68;--bad:#c2261a;
+  --r:.9rem;--r-big:1.3rem;--bw:1px;--font:"Bricolage","Segoe UI Variable Display","Segoe UI",sans-serif;
+  --key-shadow:0 .22rem 0 #b3bcc5;
+  --pad-tex:linear-gradient(#cdd3d9,#cdd3d9) 50% 0/1px 100% no-repeat,linear-gradient(#cdd3d9,#cdd3d9) 0 50%/100% 1px no-repeat;
+  --track:.55rem;--thumb-r:50%;--title-sp:-.02em;
+}
+/* Arcade: cabinet marquee. Indigo, hot pink and cyan, chunky outlines. */
+[data-look=arcade]{
+  --bg:#17123a;--panel:#211a52;--raise:#2c2370;--line:#4a3da3;--text:#f5f1ff;--dim:#a99fe0;
+  --accent:#ff4fa3;--accent-ink:#2a0418;--live:#45e3ff;--ok:#7cf29a;--bad:#ff7a5e;
+  --r:1.1rem;--r-big:1.5rem;--bw:2px;--font:"Chakra","Bahnschrift","Segoe UI",sans-serif;
+  --key-shadow:0 .25rem 0 #120d30;
+  --pad-tex:repeating-linear-gradient(0deg,rgba(69,227,255,.09) 0 1px,transparent 1px 1.5rem),repeating-linear-gradient(90deg,rgba(69,227,255,.09) 0 1px,transparent 1px 1.5rem);
+  --track:.5rem;--thumb-r:.4rem;--title-sp:.02em;
+}
+
+*{box-sizing:border-box}
+html{font-size:clamp(10px,min(2.5vh,1.4vw),22px)}
+body{margin:0;height:100vh;overflow:hidden;display:grid;grid-template-columns:7.6rem 1fr;background:var(--bg);color:var(--text);
+  font:500 1rem/1.3 var(--font);user-select:none;-webkit-user-select:none;touch-action:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+button,select{font:inherit;color:inherit}
+button{cursor:pointer;touch-action:none}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h1,h2,h3,p{margin:0}
+h2{font-size:1.55rem;font-weight:700;letter-spacing:var(--title-sp);line-height:1.1}
+h3{font-size:1.05rem;font-weight:700;letter-spacing:var(--title-sp)}
+.dim{color:var(--dim)}
+.num{font-variant-numeric:tabular-nums}
+
+/* ---- Rail -------------------------------------------------------------- */
+#rail{display:flex;flex-direction:column;gap:.3rem;padding:.6rem .45rem;border-right:var(--bw) solid var(--line);background:var(--panel)}
+#rail .brand{font-weight:700;font-size:1.05rem;text-align:center;padding:.2rem 0 .3rem;letter-spacing:var(--title-sp)}
+#rail button.tab{flex:0 0 auto;display:grid;justify-items:center;gap:.15rem;padding:.5rem .2rem;border:var(--bw) solid transparent;border-radius:var(--r);background:none;color:var(--dim);font-size:.82rem;font-weight:700}
+#rail button.tab svg{width:1.7rem;height:1.7rem;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+#rail button.tab[aria-selected=true]{color:var(--text);background:var(--raise);border-color:var(--line)}
+[data-look=faceplate] #rail button.tab[aria-selected=true]{box-shadow:inset .22rem 0 0 var(--accent)}
+[data-look=daylight] #rail button.tab[aria-selected=true]{background:var(--text);color:var(--bg);border-color:var(--text)}
+[data-look=arcade] #rail button.tab[aria-selected=true]{border-color:var(--accent);color:var(--accent);box-shadow:0 0 1rem -.2rem var(--accent)}
+#vol{margin-top:auto;display:grid;grid-template-columns:1fr 1fr;gap:.3rem}
+#vol span{grid-column:1/-1;text-align:center;font-size:.72rem;color:var(--dim);line-height:1.1}
+#vol .btn{min-height:3.7rem;padding:0;font-size:.95rem;display:grid;place-items:center}
+#vol .btn.wide{grid-column:1/-1;min-height:2.9rem}
+#vol svg{width:1.7rem;height:1.7rem;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round}
+#linkstat{margin-top:.4rem;display:grid;justify-items:center;gap:.1rem;padding:.4rem .2rem;border:var(--bw) solid var(--line);border-radius:var(--r);background:none;font-size:.78rem;line-height:1.15;text-align:center}
+#linkstat i{width:.7rem;height:.7rem;border-radius:50%;background:var(--dim)}
+#linkstat[data-conn=on] i{background:var(--ok)}
+#linkstat[data-conn=connecting] i,#linkstat[data-conn=lost] i{background:var(--accent);animation:blink 1s steps(2) infinite}
+#linkstat[data-conn=wrongpin] i{background:var(--bad)}
+#linkstat b{font-weight:700}
+@keyframes blink{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){#linkstat i{animation:none}}
+
+/* ---- Shared controls --------------------------------------------------- */
+main{min-width:0;min-height:0;position:relative}
+main>section{position:absolute;inset:0;display:none;padding:1rem 1.2rem}
+main>section.on{display:grid}
+.panel{background:var(--panel);border:var(--bw) solid var(--line);border-radius:var(--r-big);padding:.9rem 1rem}
+.btn{min-height:3.5rem;padding:.5rem 1rem;border:var(--bw) solid var(--line);border-radius:var(--r);background:var(--raise);box-shadow:var(--key-shadow);font-weight:700}
+.btn:active,.btn.down{transform:translateY(.15rem);box-shadow:none}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.quiet{background:none;box-shadow:none}
+.row{display:grid;grid-template-columns:minmax(0,11rem) 1fr 3.6rem;align-items:center;gap:.8rem;min-height:3.6rem}
+.row label{font-weight:700;line-height:1.15}
+.row label small{display:block;font-weight:500;font-size:.8rem;color:var(--dim)}
+.row output{text-align:right;color:var(--live);font-weight:700;font-variant-numeric:tabular-nums}
+.row.wide{grid-template-columns:minmax(0,11rem) 1fr}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:3.6rem;margin:0;background:none;touch-action:none}
+input[type=range]::-webkit-slider-runnable-track{height:var(--track);border-radius:1rem;background:linear-gradient(var(--accent),var(--accent)) 0/var(--fill,50%) 100% no-repeat,var(--line)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:2.2rem;height:2.9rem;margin-top:calc(var(--track)/2 - 1.45rem);border-radius:var(--thumb-r);background:var(--text);border:var(--bw) solid var(--bg);box-shadow:0 .15rem .3rem rgba(0,0,0,.35)}
+[data-look=daylight] input[type=range]::-webkit-slider-thumb{width:2.7rem;height:2.7rem;margin-top:calc(var(--track)/2 - 1.35rem);background:var(--raise);border:1px solid var(--line)}
+[data-look=arcade] input[type=range]::-webkit-slider-thumb{background:var(--live);border-color:var(--bg)}
+.seg{display:flex;gap:.35rem;flex-wrap:wrap}
+.seg button{flex:1 1 auto;min-height:3.4rem;padding:.3rem .9rem;border:var(--bw) solid var(--line);border-radius:var(--r);background:none;font-weight:700;color:var(--dim)}
+.compact .row .seg{flex-wrap:nowrap}.compact .row .seg button{padding:.3rem .45rem}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.switch{justify-self:start;width:5.4rem;height:3rem;border-radius:2rem;border:var(--bw) solid var(--line);background:var(--bg);position:relative;padding:0}
+.switch::after{content:"";position:absolute;top:.3rem;left:.3rem;width:2.2rem;height:calc(100% - .5rem);border-radius:2rem;background:var(--dim);transition:transform .12s}
+.switch[aria-pressed=true]{background:var(--accent);border-color:var(--accent)}
+.switch[aria-pressed=true]::after{transform:translateX(2.45rem);background:var(--accent-ink)}
+[data-look=faceplate] .switch,[data-look=faceplate] .switch::after{border-radius:.25rem}
+select{min-height:3.4rem;font-size:1rem;width:100%;padding:0 .7rem;border:var(--bw) solid var(--line);border-radius:var(--r);background:var(--raise)}
+select option{background:var(--panel);color:var(--text)}
+.scroll{overflow-y:auto;touch-action:pan-y;overscroll-behavior:contain;min-height:0;padding-right:.3rem}
+.scroll::-webkit-scrollbar{width:.4rem}.scroll::-webkit-scrollbar-thumb{background:var(--line);border-radius:1rem}
+.head{display:flex;align-items:end;justify-content:space-between;gap:1rem}
+.note{font-size:.88rem;color:var(--dim);max-width:60ch}
+.warn{color:var(--bad);font-weight:700}
+
+/* ---- Play -------------------------------------------------------------- */
+#play{grid-template-columns:19.5rem 1fr;gap:1rem}
+[data-side=left] #play{grid-template-columns:1fr 19.5rem}
+[data-side=left] #play .side{order:2}
+#play .side{display:flex;flex-direction:column;gap:.8rem;min-height:0}
+#gamecard{display:grid;gap:.15rem;text-align:left;padding:.7rem .9rem;border:var(--bw) solid var(--line);border-radius:var(--r-big);background:var(--panel)}
+#gamecard small{color:var(--dim);font-size:.8rem}
+#gamecard b{font-size:1.5rem;line-height:1.05;letter-spacing:var(--title-sp)}
+#gamecard span{font-size:.85rem;color:var(--live);font-weight:700}
+#gamecard span.offm,#gamecard span.wait{color:var(--dim)}
+#gamecard span.offm{font-weight:500}
+#banner{display:none;grid-template-columns:1fr auto;gap:.6rem;align-items:center;padding:.6rem .8rem;border-radius:var(--r);border:var(--bw) solid var(--bad);font-size:.9rem;line-height:1.2}
+#banner.on{display:grid}
+#keys{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:.55rem;min-height:0}
+#keys .btn{font-size:1.15rem;min-height:0;padding:.2rem}
+#keys .btn.nokey{color:var(--dim);font-weight:500;font-size:.85rem;box-shadow:none;border-style:dashed;background:none}
+.scopes{flex:0 0 auto;display:grid;grid-template-columns:1fr 1fr 3rem;gap:.6rem;align-items:stretch}
+svg.scope{width:100%;aspect-ratio:1;display:block}
+svg.scope .ring{fill:none;stroke:var(--line);stroke-width:1.5}
+svg.scope .dz{fill:var(--line);opacity:.45}
+svg.scope .cross{stroke:var(--line);stroke-width:.6}
+svg.scope .rawdot{fill:none;stroke:var(--dim);stroke-width:1.5}
+svg.scope .outdot{fill:var(--live)}
+svg.scope.clk .ring{stroke:var(--live)}
+.trigs{display:grid;grid-template-columns:1fr 1fr;gap:.35rem}
+.trig{position:relative;border:var(--bw) solid var(--line);border-radius:.3rem;overflow:hidden;background:var(--bg)}
+.trig i{position:absolute;left:0;right:0;bottom:0;height:0;background:var(--live)}
+.trig u{position:absolute;left:0;right:0;bottom:0;height:0;border-top:2px solid var(--dim)}
+#padwrap{display:grid;grid-template-rows:1fr auto;gap:.7rem;min-height:0}
+#pad{position:relative;border:var(--bw) solid var(--line);border-radius:var(--r-big);background:var(--pad-tex),var(--panel);overflow:hidden;touch-action:none}
+#pad canvas{position:absolute;inset:0;width:100%;height:100%}
+#pad p{position:absolute;left:1.1rem;bottom:.9rem;right:1.1rem;color:var(--dim);font-size:.92rem;pointer-events:none}
+#pad .tag{position:absolute;left:1.1rem;top:.8rem;font-weight:700;font-size:.92rem;pointer-events:none}
+#pad.off{background:var(--bg);border-style:dashed}
+#clicks{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+#clicks .btn{min-height:3.9rem}
+#clicks.hide{display:none}
+
+#tools{display:grid;grid-template-columns:1fr 1fr auto auto;gap:.6rem}
+#tools .btn{min-height:4.2rem}
+#tools .btn.sm{min-width:6.2rem;padding:.3rem .7rem}
+#tools.solo{grid-template-columns:1fr auto}
+#lapline{font-style:normal;font-size:.8rem;color:var(--dim);min-height:1em}
+#kb{display:grid;grid-template-rows:auto repeat(5,1fr);gap:.35rem;min-height:0;border:var(--bw) solid var(--line);border-radius:var(--r-big);background:var(--panel);padding:.55rem}
+#kb .krow{display:flex;gap:.35rem;min-height:0}
+#kb .btn{flex:1 1 0;min-width:0;min-height:0;padding:0;font-size:1.05rem;display:grid;place-items:center}
+#kb .btn.w2{flex:1.6 1 0}#kb .btn.w5{flex:5 1 0}
+#kb .btn.sys{font-size:.82rem;min-height:3.2rem}
+#kb .btn.armed{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+#lock{position:fixed;inset:0;z-index:4;display:none;grid-template-rows:1fr auto;padding:1.4rem;background:color-mix(in srgb,var(--bg) 93%,transparent);touch-action:none}
+#lock.on{display:grid}
+#lock h2{align-self:center;justify-self:center;text-align:center;font-size:2rem}
+#lock h2 small{display:block;font-size:1rem;font-weight:500;color:var(--dim);margin-top:.4rem;letter-spacing:0}
+#unlock{justify-self:end;position:relative;overflow:hidden;min-width:15rem;min-height:4.2rem}
+#unlock i{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--accent);opacity:.35}
+#unlock.holding i{width:100%;transition:width .8s linear}
+#unlock span{position:relative}
+.runbar{display:grid;grid-template-columns:1fr auto;gap:.8rem;align-items:center;padding:.55rem .8rem;border:var(--bw) solid var(--line);border-radius:var(--r);background:var(--panel)}
+.runbar b{color:var(--live)}
+.chips{display:flex;flex-wrap:wrap;gap:.4rem}
+.chip{display:inline-flex;align-items:center;gap:.5rem;min-height:3.2rem;padding:.2rem .7rem;border:var(--bw) solid var(--line);border-radius:var(--r);background:none;font-size:.88rem}
+.modes{display:grid;grid-template-columns:repeat(5,1fr);gap:.4rem}
+.modes button{display:grid;gap:.05rem;justify-items:center;min-height:3.8rem;padding:.25rem;border:var(--bw) solid var(--line);border-radius:var(--r);background:none;font-weight:700}
+.modes button small{font-weight:500;font-size:.72rem;color:var(--dim)}
+.modes button[data-m=turbo],.modes button[data-m=toggle]{border-color:var(--accent)}
+.modes button[data-m=turbo] small,.modes button[data-m=toggle] small{color:var(--live);font-weight:700}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;align-items:center}
+.two span{font-size:.85rem;color:var(--dim)}
+.saved{display:grid;gap:.4rem;margin-bottom:.8rem}
+.saved div{display:grid;grid-template-columns:1fr auto;gap:.4rem}
+.saved .btn{text-align:left;min-height:3rem}
+.saved .btn small{color:var(--dim);font-weight:500}
+.saved .btn[aria-pressed=true]{border-color:var(--accent)}
+
+/* ---- Game types -------------------------------------------------------- */
+#types{grid-template-rows:auto auto 1fr;gap:.7rem}
+#typegrid{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:1fr;gap:.7rem;min-height:0}
+.type{display:grid;grid-template-rows:auto auto 1fr auto;gap:.3rem;text-align:left;padding:.85rem .95rem;border:var(--bw) solid var(--line);border-radius:var(--r-big);background:var(--panel);box-shadow:var(--key-shadow);overflow:hidden}
+.type svg{width:2.2rem;height:2.2rem;fill:none;stroke:var(--dim);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.type b{font-size:1.25rem;line-height:1.1;letter-spacing:var(--title-sp)}
+.type p{font-size:.86rem;color:var(--dim);line-height:1.25}
+.type em{font-style:normal;font-size:.8rem;font-weight:700;color:var(--dim)}
+.type[aria-pressed=true]{border-color:var(--accent);background:var(--raise)}
+.type[aria-pressed=true] svg{stroke:var(--accent)}
+.type[aria-pressed=true] em{color:var(--accent)}
+[data-look=daylight] .type[aria-pressed=true]{background:var(--text);color:var(--bg);border-color:var(--text)}
+[data-look=daylight] .type[aria-pressed=true] p{color:#b9c1c9}
+[data-look=arcade] .type[aria-pressed=true]{box-shadow:0 0 1.4rem -.3rem var(--accent),var(--key-shadow)}
+
+/* ---- Tune / Motion / Link --------------------------------------------- */
+#tune,#motion,#link{grid-template-rows:auto 1fr;gap:.8rem}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:.9rem;align-content:start}
+.stickpanel{display:grid;grid-template-columns:8.5rem 1fr;gap:.2rem 1rem}
+.stickpanel h3{grid-column:1/-1}
+.stickpanel .viz{display:grid;gap:.5rem;align-content:start}
+svg.curve{width:100%;aspect-ratio:1.6;border:var(--bw) solid var(--line);border-radius:.3rem;background:var(--bg)}
+svg.curve path{fill:none;stroke:var(--live);stroke-width:2}
+.stickpanel .row,.compact .row{grid-template-columns:minmax(0,7.2rem) 1fr 3.2rem}
+.compact .row.wide{grid-template-columns:minmax(0,12rem) 1fr}
+.keygrid{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem}
+#horizon{width:100%;aspect-ratio:1.9;border:var(--bw) solid var(--line);border-radius:var(--r);background:var(--bg);display:block}
+#horizon .h{stroke:var(--live);stroke-width:2.5}
+#horizon .tick{stroke:var(--line);stroke-width:1}
+#horizon .dot{fill:var(--live)}
+.bars{display:grid;gap:.35rem;margin-top:.6rem}
+.bar{display:grid;grid-template-columns:3.6rem 1fr 3.5rem;gap:.5rem;align-items:center;font-size:.85rem}
+.bar div{height:.55rem;border-radius:1rem;background:var(--line);position:relative;overflow:hidden}
+.bar div i{position:absolute;top:0;bottom:0;left:50%;width:0;background:var(--live)}
+.found{display:grid;gap:.45rem}
+.found button{display:grid;grid-template-columns:1fr auto;align-items:center;text-align:left;min-height:3.4rem}
+.found button small{color:var(--dim);font-weight:500}
+.found button[aria-pressed=true]{border-color:var(--accent)}
+.pinbox{display:flex;gap:.4rem}
+.pinbox span{flex:1;height:3.4rem;display:grid;place-items:center;font-size:1.6rem;font-weight:700;border:var(--bw) solid var(--line);border-radius:var(--r);background:var(--bg);color:var(--live)}
+.looks{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem}
+.looks button{min-height:3.6rem;display:grid;gap:.3rem;justify-items:start;padding:.5rem .7rem;color:var(--text);font-family:var(--font)}
+.looks i{display:flex;gap:.2rem}.looks i u{width:1rem;height:.6rem;border-radius:.15rem;border:1px solid rgba(128,128,128,.5)}
+.looks button[aria-pressed=true]{border-color:var(--accent)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:.25rem 1rem;font-size:.95rem}
+.kv b{color:var(--live);font-variant-numeric:tabular-nums}
+
+/* ---- Keypad ------------------------------------------------------------ */
+#keypad{position:fixed;inset:0;display:none;place-items:center;background:rgba(0,0,0,.55);z-index:5}
+#keypad.on{display:grid}
+#keypad .box{width:23rem;display:grid;gap:.7rem;background:var(--panel);border:var(--bw) solid var(--line);border-radius:var(--r-big);padding:1rem}
+#keypad .disp{min-height:3.2rem;display:grid;place-items:center;font-size:1.7rem;font-weight:700;color:var(--live);border:var(--bw) solid var(--line);border-radius:var(--r);background:var(--bg);font-variant-numeric:tabular-nums}
+#keypad .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.45rem}
+#keypad .grid .btn{min-height:3.5rem;font-size:1.3rem}
+#toast{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);padding:.6rem 1rem;border-radius:var(--r);background:var(--text);color:var(--bg);font-weight:700;display:none;z-index:6}
+#toast.on{display:block}
+</style>
+</head>
+<body data-look="daylight" data-side="right">
+<nav id="rail" role="tablist" aria-label="Sections">
+  <div class="brand">AllyPad</div>
+  <button class="tab" role="tab" data-tab="play"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M8 10v4M6 12h4"/><circle cx="16.5" cy="12" r="1.2"/></svg>Play</button>
+  <button class="tab" role="tab" data-tab="types"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>Game type</button>
+  <button class="tab" role="tab" data-tab="tune"><svg viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>Tune</button>
+  <button class="tab" role="tab" data-tab="motion"><svg viewBox="0 0 24 24"><rect x="5" y="8" width="14" height="8" rx="2" transform="rotate(-18 12 12)"/><path d="M3.5 17.5c2 2.5 5 3.5 8 3.5M20.5 6.5c-2-2.5-5-3.500-8-3.500"/></svg>Motion</button>
+  <button class="tab" role="tab" data-tab="link"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="10" rx="1.5"/><path d="M2 19h20"/></svg>Laptop</button>
+  <div id="vol" role="group" aria-label="Laptop volume">
+    <span id="vollabel">Laptop volume</span>
+    <button class="btn" data-vol="key:174" aria-label="Volume down"><svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg></button>
+    <button class="btn" data-vol="key:175" aria-label="Volume up"><svg viewBox="0 0 24 24"><path d="M6 12h12M12 6v12"/></svg></button>
+    <button class="btn wide" data-vol="key:173" data-once="1">Mute</button>
+  </div>
+  <button id="linkstat" data-conn="off" aria-label="Connection"><i></i><b>Offline</b><span class="num"></span><span class="num" id="abat"></span></button>
+</nav>
+<main>
+  <section id="play"></section>
+  <section id="types"></section>
+  <section id="tune"></section>
+  <section id="motion"></section>
+  <section id="link"></section>
+</main>
+<div id="keypad"><div class="box"><h3 id="kp-title"></h3><div class="disp" id="kp-disp"></div><div class="grid" id="kp-grid"></div></div></div>
+<div id="lock"><h2>Touch is locked<small>The controller keeps working. Nothing on this screen reacts until you unlock it.</small><small id="lockbat"></small></h2><button class="btn" id="unlock"><i></i><span>Hold to unlock</span></button></div>
+<div id="toast" role="status"></div>
+
+<script>
+"use strict";
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const qs = new URLSearchParams(location.search);
+let cfg = null, defaults = [], st = {conn: "off", raw: [0,0,0,0,0,0], out: [0,0,0,0,0,0], g: [0,0,0]};
+let tab = qs.get("tab") || "play", tuneTab = qs.get("sub") || "sticks", found = [], ws = null, searching = 0, everLinked = false, lostAt = 0, kbOn = false, lastApp = "", sleepArm = 0;
+
+const ACTIONS = [
+  ["none","Empty"],["key:27","Esc"],["key:13","Enter"],["key:32","Space"],["key:9","Tab"],["key:8","Backspace"],
+  ["key:16","Shift"],["key:17","Ctrl"],["key:18","Alt"],["key:91","Windows"],
+  ["key:77","M"],["key:73","I"],["key:71","G"],["key:70","F"],["key:66","B"],["key:67","C"],["key:82","R"],["key:81","Q"],["key:69","E"],
+  ["key:49","1"],["key:50","2"],["key:51","3"],["key:52","4"],
+  ["key:112","F1"],["key:113","F2"],["key:116","F5"],["key:122","F11"],
+  ["key:179","Play / pause"],["key:174","Volume down"],["key:175","Volume up"],["key:173","Mute"],
+  ["key:18+9","Alt+Tab"],["key:91+44","Screenshot"],["key:177","Previous track"],["key:176","Next track"],
+  ["pad:1024","Xbox button"],["pad:16","Menu"],["pad:32","View"],["mouse:4","Middle click"]
+];
+const BACK_KEYS = [[145,"Scroll Lock"],[19,"Pause"],[118,"F7"],[119,"F8"],[120,"F9"],[121,"F10"],[124,"F13"],[125,"F14"],[126,"F15"],[127,"F16"],[128,"F17"],[129,"F18"]];
+const MODE_BTNS = [["a","A"],["b","B"],["x","X"],["y","Y"],["lb","LB"],["rb","RB"],["lt","LT"],["rt","RT"],["ls","L stick"],["rs","R stick"]];
+const SHORT = {"key:18+9":"Alt+Tab","key:91+44":"Screenshot","key:177":"Prev","key:176":"Next","key:179":"Play","key:174":"Vol −","key:175":"Vol +","key:91":"Win","key:8":"Bksp","pad:1024":"Xbox","mouse:4":"Mid click"};
+const actLabel = a => SHORT[a] || (ACTIONS.find(x => x[0] === a) || [0, "?"])[1];
+const TYPE_ICON = {
+  standard:'<rect x="3" y="7" width="18" height="11" rx="4"/><path d="M8 11v3M6.5 12.500h3"/><circle cx="16" cy="12.500" r="1"/>',
+  shooter:'<circle cx="12" cy="12" r="7"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/>',
+  racing:'<circle cx="12" cy="12" r="8.500"/><circle cx="12" cy="12" r="2"/><path d="M12 14v6.500M10.200 11.200 4 9.500M13.800 11.200 20 9.500"/>',
+  flight:'<path d="M12 3v18M12 9 3 14v2l9-2 9 2v-2zM9 21h6"/>',
+  fighting:'<path d="M12 3v6M12 15v6M3 12h6M15 12h6"/><rect x="9" y="9" width="6" height="6" rx="1"/>',
+  desktop:'<path d="M6 3l12 9-5.500 1 3 6-2.200 1-3-6L6 18z"/>',
+  custom1:'<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
+  custom2:'<path d="M4 7h2M10 7h10M4 17h10M18 17h2"/><circle cx="8" cy="7" r="2"/><circle cx="16" cy="17" r="2"/>'
+};
+const prof = () => cfg.profiles.find(p => p.id === cfg.active) || cfg.profiles[0];
+const getPath = path => path.split(".").reduce((o, k) => o[k], path[0] === "p" ? {p: prof()} : {c: cfg});
+function setPath(path, v) {
+  const ks = path.split("."), root = ks.shift() === "p" ? prof() : cfg, last = ks.pop();
+  ks.reduce((o, k) => o[k], root)[last] = v;
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ---- Backend link ------------------------------------------------------ */
+function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
+let saveT = 0;
+function saveSoon() { clearTimeout(saveT); saveT = setTimeout(() => send({t: "cfg", cfg}), 60); }
+function connect() {
+  ws = new WebSocket(`ws://${location.host}/ws`);
+  ws.onopen = () => { everLinked = true; lostAt = 0; };
+  ws.onmessage = e => {
+    const m = JSON.parse(e.data);
+    if (m.t === "st") { st = m; live(); }
+    else if (m.t === "hello") {
+      cfg = m.cfg; defaults = m.defaults;
+      if (qs.get("look")) cfg.look = qs.get("look");
+      applyLook(); show(tab);
+    }
+    else if (m.t === "cfg") { cfg = m.cfg; applyLook(); if (!pointersDown) show(tab); }
+    else if (m.t === "found") { found = m.list; if (tab === "link") renderLink(); }
+    else if (m.t === "toast") toast(m.text);
+  };
+  ws.onclose = () => {
+    st.conn = "off"; live();
+    // The program behind this window has gone: close the window with it.
+    if (everLinked) { lostAt = lostAt || Date.now(); if (Date.now() - lostAt > 2500) return stopped(); }
+    setTimeout(connect, 500);
+  };
+}
+function stopped() {
+  window.close();
+  document.body.innerHTML = '<p style="margin:auto;font-size:1.3rem">AllyPad has stopped. You can close this window.</p>';
+}
+function toast(text) { const t = $("#toast"); t.textContent = text; t.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("on"), 2600); }
+function applyLook() { document.body.dataset.look = cfg.look; document.body.dataset.side = cfg.pad_side; }
+
+/* ---- Control builders -------------------------------------------------- */
+const fmtPct = v => Math.round(v * 100) + "%";
+const fmtX = v => (+v).toFixed(2).replace(/0$/, "") + "×";
+const fmtDeg = v => Math.round(v) + "°";
+const FMT = {pct: fmtPct, x: fmtX, deg: fmtDeg, dps: v => (+v).toFixed(1) + "°/s", curve: v => (+v).toFixed(1)};
+function slider(label, path, min, max, step, fmt, hint) {
+  const v = getPath(path);
+  return `<div class="row"><label>${label}${hint ? `<small>${hint}</small>` : ""}</label>
+    <input type="range" data-path="${path}" data-fmt="${fmt}" min="${min}" max="${max}" step="${step}" value="${v}" style="--fill:${(v - min) / (max - min) * 100}%" aria-label="${label}">
+    <output>${FMT[fmt](v)}</output></div>`;
+}
+function toggle(label, path, hint) {
+  return `<div class="row wide"><label>${label}${hint ? `<small>${hint}</small>` : ""}</label>
+    <button class="switch" data-toggle="${path}" aria-pressed="${!!getPath(path)}" aria-label="${label}"></button></div>`;
+}
+function seg(label, path, opts, hint) {
+  const v = getPath(path);
+  const b = opts.map(([val, text]) => `<button data-seg="${path}" data-val="${val}" aria-pressed="${String(v) === String(val)}">${text}</button>`).join("");
+  return label ? `<div class="row wide"><label>${label}${hint ? `<small>${hint}</small>` : ""}</label><div class="seg">${b}</div></div>` : `<div class="seg">${b}</div>`;
+}
+const scope = id => `<svg class="scope" id="${id}" viewBox="-50 -50 100 100"><circle class="ring" r="46"/><path class="cross" d="M-46 0H46M0-46V46"/><circle class="dz" r="0"/><circle class="rawdot" r="5"/><circle class="outdot" r="4"/></svg>`;
+
+document.addEventListener("input", e => {
+  const el = e.target;
+  if (el.matches("input[type=range][data-path]")) {
+    const v = +el.value;
+    setPath(el.dataset.path, v);
+    el.style.setProperty("--fill", (v - el.min) / (el.max - el.min) * 100 + "%");
+    el.nextElementSibling.textContent = FMT[el.dataset.fmt](v);
+    saveSoon(); curves();
+  } else if (el.matches("select[data-key]")) {
+    prof().keys[+el.dataset.key] = el.value; saveSoon();
+  } else if (el.matches("select[data-back]")) {
+    prof().back[+el.dataset.back] = el.value; saveSoon();
+  } else if (el.matches("select[data-backkey]")) {
+    cfg.back_keys[+el.dataset.backkey] = +el.value; saveSoon();
+  }
+});
+document.addEventListener("click", e => {
+  const el = e.target.closest("button"); if (!el) return;
+  if (el.dataset.tab) show(el.dataset.tab);
+  else if (el.id === "linkstat") show("link");
+  else if (el.dataset.toggle) { setPath(el.dataset.toggle, !getPath(el.dataset.toggle)); saveSoon(); show(tab); }
+  else if (el.dataset.seg) {
+    let v = el.dataset.val; if (v !== "" && !isNaN(v)) v = +v;
+    setPath(el.dataset.seg, v); saveSoon(); applyLook(); show(tab);
+  }
+  else if (el.dataset.type) { cfg.active = el.dataset.type; saveSoon(); show(tab); }
+  else if (el.dataset.mode) {
+    const m = prof().modes, k = el.dataset.mode, next = {undefined: "turbo", turbo: "toggle", toggle: undefined}[m[k]];
+    if (next) m[k] = next; else delete m[k];
+    saveSoon(); show(tab);
+  }
+  else if (el.dataset.sub) { tuneTab = el.dataset.sub; show("tune"); }
+  else if (el.dataset.go) show(el.dataset.go);
+  else if (el.dataset.do) actions[el.dataset.do](el);
+});
+document.addEventListener("contextmenu", e => e.preventDefault());
+
+const actions = {
+  recenter() { send({t: "recenter"}); toast("Centred on how you are holding it now"); },
+  calibrate() { send({t: "calibrate"}); toast("Hold the Ally still for two seconds"); },
+  reset() {
+    const d = defaults.find(p => p.id === cfg.active); if (!d) return;
+    cfg.profiles[cfg.profiles.findIndex(p => p.id === cfg.active)] = JSON.parse(JSON.stringify(d));
+    saveSoon(); show(tab); toast(d.name + " is back to its original settings");
+  },
+  discover() { found = []; send({t: "discover"}); searching = Date.now(); renderLink(); clearTimeout(actions.dt); actions.dt = setTimeout(() => { searching = 0; if (tab === "link") renderLink(); }, 4200); },
+  pick(el) { cfg.host = el.dataset.ip; cfg.host_name = el.dataset.name; saveSoon(); if (cfg.pin.length < 4) actions.pin(); else send({t: "connect"}); renderLink(); },
+  pin() { keypad("PIN shown on the laptop", "", 6, false, v => { cfg.pin = v; saveSoon(); send({t: "connect"}); renderLink(); }); },
+  addr() { keypad("Laptop address", cfg.host, 15, true, v => { cfg.host = v; cfg.host_name = ""; saveSoon(); if (cfg.pin.length < 4) actions.pin(); else send({t: "connect"}); renderLink(); }); },
+  disconnect() { cfg.host = ""; cfg.host_name = ""; saveSoon(); send({t: "disconnect"}); renderLink(); },
+  full() { cfg.fullscreen = !document.fullscreenElement; saveSoon(); cfg.fullscreen ? goFull() : document.exitFullscreen(); },
+  quit() { everLinked = false; send({t: "quit"}); setTimeout(stopped, 200); },
+  look(el) { cfg.look = el.dataset.look; applyLook(); saveSoon(); renderLink(); },
+  kb() { kbOn = !kbOn; renderPlay(); live(); },
+  lock() { held.clear(); sendKeys(); mbHeld = 0; mbTap = 0; sendMb(); send({t: "vs", x: 0, y: 0, up: true}); $("#lock").classList.add("on"); send({t: "locked", on: true}); },
+  usesaved(el) { const sv = cfg.saved[+el.dataset.i]; if (!sv) return; cfg.host = sv.host; cfg.host_name = sv.name; cfg.pin = sv.pin; saveSoon(); send({t: "connect"}); renderLink(); },
+  forget(el) { cfg.saved.splice(+el.dataset.i, 1); saveSoon(); renderLink(); },
+  maptoggle() { const k = (st.lap && st.lap.app || "").toLowerCase(); if (!k) return; if (cfg.game_map[k] === cfg.active) delete cfg.game_map[k]; else cfg.game_map[k] = cfg.active; saveSoon(); renderTypes(); },
+  unmap(el) { delete cfg.game_map[el.dataset.k]; saveSoon(); renderTypes(); }
+};
+
+/* ---- Screens ----------------------------------------------------------- */
+function show(t) {
+  tab = t;
+  $$("#rail .tab").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === t));
+  $$("main>section").forEach(s => s.classList.toggle("on", s.id === t));
+  if (!cfg) return;
+  ({play: renderPlay, types: renderTypes, tune: renderTune, motion: renderMotion, link: renderLink})[t]();
+  if (t === "link" && !found.length && st.conn !== "on" && !searching) actions.discover();
+  live(); curves();
+}
+
+const MOTION_TEXT = {off: "Motion off", aim_stick: "Motion aims the right stick", aim_mouse: "Motion aims the mouse", steer: "Tilt steers", tilt: "Tilt flies"};
+const WHEN_TEXT = {always: "", lt: " while LT is held", rt: " while RT is held", lb: " while LB is held", rb: " while RB is held"};
+function renderPlay() {
+  const p = prof(), tp = p.trackpad.mode, desk = p.output === "desktop";
+  const mtxt = p.motion.mode === "off" ? "Motion off" : MOTION_TEXT[p.motion.mode] + WHEN_TEXT[p.motion.when];
+  const hint = tp === "mouse" ? "Slide to move the laptop's pointer. Tap to click, two fingers to scroll, double-tap and hold to drag."
+    : tp === "stick" ? "Touch anywhere and drag to push the right stick. Lift to let go."
+    : "The trackpad is off for this game type. Turn it on under Tune.";
+  $("#play").innerHTML = `
+  <div class="side">
+    <button id="gamecard" data-go="types"><small>Game type</small><b>${esc(p.name)}</b><span class="${p.motion.mode === "off" ? "offm" : ""}" id="motxt">${mtxt}</span><em id="lapline"></em></button>
+    <div id="banner"><span id="bantxt"></span><button class="btn" data-go="link">Set up</button></div>
+    <div id="keys">${p.keys.map((a, i) => a === "none" ? `<button class="btn nokey" data-go="tune" data-subgo="pad">Add key</button>` : `<button class="btn" data-act="${a}">${esc(actLabel(a))}</button>`).join("")}</div>
+    <div class="scopes">${scope("scL")}${scope("scR")}<div class="trigs"><div class="trig" id="tgL"><i></i><u></u></div><div class="trig" id="tgR"><i></i><u></u></div></div></div>
+  </div>
+  <div id="padwrap">
+    ${kbOn ? keyboard() : `<div id="pad" class="${tp === "off" ? "off" : ""}"><canvas></canvas><span class="tag">${tp === "mouse" ? "Trackpad" : tp === "stick" ? "Right stick" : ""}</span><p>${hint}</p></div>`}
+    <div id="tools" class="${tp === "mouse" || desk ? "" : "solo"}">${tp === "mouse" || desk ? `<button class="btn" data-mb="1">Left click</button><button class="btn" data-mb="2">Right click</button>` : "<span></span>"}
+      <button class="btn sm" data-do="kb">${kbOn ? "Trackpad" : "Keyboard"}</button><button class="btn sm" data-do="lock">Lock touch</button></div>
+  </div>`;
+  $$("#keys [data-subgo]").forEach(b => b.addEventListener("click", () => { tuneTab = "pad"; }, true));
+  if (!kbOn) bindPad();
+}
+
+const KB_ROWS = [
+  [[27,"Esc",1.3],[49,"1"],[50,"2"],[51,"3"],[52,"4"],[53,"5"],[54,"6"],[55,"7"],[56,"8"],[57,"9"],[48,"0"],[8,"Bksp",1.6]],
+  [[9,"Tab",1.3],[81,"Q"],[87,"W"],[69,"E"],[82,"R"],[84,"T"],[89,"Y"],[85,"U"],[73,"I"],[79,"O"],[80,"P"]],
+  [[65,"A"],[83,"S"],[68,"D"],[70,"F"],[71,"G"],[72,"H"],[74,"J"],[75,"K"],[76,"L"],[13,"Enter",1.6]],
+  [["m16","Shift",1.6],[90,"Z"],[88,"X"],[67,"C"],[86,"V"],[66,"B"],[78,"N"],[77,"M"],[188,","],[190,"."],[38,"\u2191"]],
+  [["m17","Ctrl",1.3],["m91","Win",1.3],["m18","Alt",1.3],[32,"Space",5],[37,"\u2190"],[40,"\u2193"],[39,"\u2192"]]
+];
+const mods = new Set();
+function keyboard() {
+  const key = ([vk, label, w]) => String(vk)[0] === "m"
+    ? `<button class="btn${mods.has(+vk.slice(1)) ? " armed" : ""}" data-mod="${vk.slice(1)}" style="flex:${w || 1} 1 0">${label}</button>`
+    : `<button class="btn" data-kb="${vk}" style="flex:${w || 1} 1 0">${label}</button>`;
+  return `<div id="kb">
+    <div class="krow"><button class="btn sys" data-pulse="key:177">Previous</button><button class="btn sys" data-pulse="key:179">Play / pause</button><button class="btn sys" data-pulse="key:176">Next</button>
+      <button class="btn sys" data-pulse="key:91+44">Screenshot</button><button class="btn sys" data-pulse="key:18+9">Alt+Tab</button><button class="btn sys" data-do="sleep">Sleep</button></div>
+    ${KB_ROWS.map(r => `<div class="krow">${r.map(key).join("")}</div>`).join("")}</div>`;
+}
+actions.sleep = () => {
+  if (Date.now() - sleepArm < 3000) { sleepArm = 0; pulse("key:95"); toast("Sleep sent to the laptop"); }
+  else { sleepArm = Date.now(); toast("Tap Sleep again to put the laptop to sleep"); }
+};
+
+function renderTypes() {
+  $("#types").innerHTML = `<div class="head"><div><h2>What are you playing?</h2><p class="note">Each game type keeps its own sticks, triggers, motion and trackpad settings. Pick one, then adjust it under Tune and Motion.</p></div></div>
+  ${runbar()}
+  <div id="typegrid">${cfg.profiles.map(p => `<button class="type" data-type="${p.id}" aria-pressed="${p.id === cfg.active}">
+    <svg viewBox="0 0 24 24">${TYPE_ICON[p.id] || TYPE_ICON.standard}</svg><b>${esc(p.name)}</b><p>${esc(p.blurb)}</p><em>${p.id === cfg.active ? "In use" : "Tap to use"}</em></button>`).join("")}</div>`;
+}
+
+function runbar() {
+  const app = st.lap && st.lap.app, k = (app || "").toLowerCase(), p = prof();
+  const links = Object.entries(cfg.game_map).map(([g, id]) => { const pr = cfg.profiles.find(x => x.id === id); return `<button class="chip" data-do="unmap" data-k="${esc(g)}">${esc(g)} uses ${esc(pr ? pr.name : id)}<b>Remove</b></button>`; }).join("");
+  const now = app ? `<div class="runbar"><span>On the laptop now: <b>${esc(app)}</b>. ${cfg.game_map[k] === cfg.active ? `${esc(p.name)} is picked whenever it runs.` : `Pick ${esc(p.name)} automatically whenever it runs?`}</span><button class="btn${cfg.game_map[k] === cfg.active ? "" : " primary"}" data-do="maptoggle">${cfg.game_map[k] === cfg.active ? "Stop" : "Yes, always"}</button></div>` : "";
+  return `<div style="display:grid;gap:.5rem">${now}${links ? `<div class="chips">${links}</div>` : ""}</div>`;
+}
+
+function stickPanel(title, key, sc) {
+  return `<div class="panel stickpanel"><h3>${title}</h3>
+    <div class="viz">${scope(sc)}<svg class="curve" data-curve="${key}" viewBox="0 0 100 62"><path/></svg></div>
+    <div>${slider("Dead zone", `p.${key}.dz`, 0, .4, .01, "pct", "Ignored around centre")}
+    ${slider("Response", `p.${key}.curve`, .6, 3, .1, "curve", "Higher is finer near centre")}
+    ${slider("Sensitivity", `p.${key}.sens`, .4, 2, .05, "x")}
+    ${slider("Game boost", `p.${key}.anti`, 0, .4, .01, "pct", "Skips the game's own dead zone")}
+    ${toggle("Flip up and down", `p.${key}.invert_y`)}</div></div>`;
+}
+function renderTune() {
+  const p = prof();
+  const subs = [["sticks", "Sticks"], ["trig", "Triggers"], ["btn", "Buttons"], ["pad", "Touch"]];
+  const opts = cur => ACTIONS.map(([v, l]) => `<option value="${v}"${v === cur ? " selected" : ""}>${l}</option>`).join("");
+  let body = "";
+  if (tuneTab === "sticks") body = `<div class="cols">${stickPanel("Left stick", "ls", "tuL")}${stickPanel("Right stick", "rs", "tuR")}</div>`;
+  else if (tuneTab === "trig") body = `<div class="cols">
+    <div class="panel compact"><h3>Left trigger</h3>${slider("Starts at", "p.lt.start", 0, .6, .01, "pct")}${slider("Full at", "p.lt.end", .15, 1, .01, "pct")}${toggle("Hair trigger", "p.lt.digital", "Fully pressed as soon as it starts")}</div>
+    <div class="panel compact"><h3>Right trigger</h3>${slider("Starts at", "p.rt.start", 0, .6, .01, "pct")}${slider("Full at", "p.rt.end", .15, 1, .01, "pct")}${toggle("Hair trigger", "p.rt.digital", "Fully pressed as soon as it starts")}</div></div>`;
+  else if (tuneTab === "btn") body = `<div class="cols">
+    <div class="panel compact"><h3>Layout</h3>${toggle("Nintendo layout", "p.swap_ab", "Swaps A with B and X with Y")}${toggle("Swap the sticks", "p.swap_sticks", "For left-handed aiming")}${toggle("Left stick as D-pad", "p.ls_dpad", "For fighting games and retro titles")}
+      ${seg("Sends", "p.output", [["pad", "Controller"], ["desktop", "Mouse and keys"]], "Mouse and keys runs the desktop")}
+      <p class="note" style="margin-top:.6rem">${p.output === "desktop" ? "Left stick moves the pointer, right stick scrolls. A left click, B right click, X Enter, Y Esc, D-pad arrows, LB and RB browser back and forward, Menu opens Start." : "The laptop sees a standard Xbox controller."}</p></div>
+    <div class="panel"><h3>Turbo and toggle</h3><p class="note" style="margin:.2rem 0 .6rem">Tap a button to change it. Turbo repeats it 12 times a second while held. Toggle turns it on with one press and off with the next, so you need not hold it.</p>
+      <div class="modes">${MODE_BTNS.map(([k, l]) => `<button data-mode="${k}" data-m="${p.modes[k] || ""}">${l}<small>${p.modes[k] === "turbo" ? "Turbo" : p.modes[k] === "toggle" ? "Toggle" : "Normal"}</small></button>`).join("")}</div>
+      <h3 style="margin:.9rem 0 .2rem">Back buttons</h3><p class="note" style="margin-bottom:.5rem">Windows cannot see the Ally's two back buttons directly. In Armoury Crate, set each one to send a keyboard key, pick the same key here, then choose what it does on the laptop.</p>
+      ${[0, 1].map(i => `<div class="two" style="margin-bottom:.4rem"><select data-backkey="${i}" aria-label="Key sent by back button ${i + 1}">${BACK_KEYS.map(([v, l]) => `<option value="${v}"${v === cfg.back_keys[i] ? " selected" : ""}>${i ? "Right" : "Left"} sends ${l}</option>`).join("")}</select><select data-back="${i}" aria-label="Back button ${i + 1} action">${opts(p.back[i])}</select></div>`).join("")}
+      <p class="note" id="backlive"></p></div></div>`;
+  else body = `<div class="cols">
+    <div class="panel compact"><h3>Trackpad</h3>${seg("Works as", "p.trackpad.mode", [["mouse", "Mouse"], ["stick", "Right stick"], ["off", "Off"]])}
+      ${slider("Speed", "p.trackpad.sens", .3, 3, .05, "x")}${toggle("Speed up on fast swipes", "p.trackpad.accel")}${toggle("Tap to click", "p.trackpad.tap")}${toggle("Reverse scrolling", "p.trackpad.natural")}
+      ${seg("Sits on the", "c.pad_side", [["left", "Left"], ["right", "Right"]], "Same for every game type")}</div>
+    <div class="panel"><h3>Touch keys</h3><p class="note" style="margin:.2rem 0 .7rem">Six on-screen keys for things a controller lacks: the map, quick save, Esc.</p>
+      <div class="keygrid">${p.keys.map((a, i) => `<select data-key="${i}" aria-label="Touch key ${i + 1}">${ACTIONS.map(([v, l]) => `<option value="${v}"${v === a ? " selected" : ""}>${l}</option>`).join("")}</select>`).join("")}</div></div></div>`;
+  $("#tune").innerHTML = `<div class="head"><div><h2>Tune ${esc(p.name)}</h2></div><div class="seg">${subs.map(([k, l]) => `<button data-sub="${k}" aria-pressed="${k === tuneTab}">${l}</button>`).join("")}<button data-do="reset">Reset</button></div></div><div class="scroll">${body}</div>`;
+}
+
+function renderMotion() {
+  const p = prof(), m = p.motion, aim = m.mode === "aim_stick" || m.mode === "aim_mouse", tilt = m.mode === "steer" || m.mode === "tilt";
+  const noSensor = st.gy === false && st.ac === false;
+  $("#motion").innerHTML = `<div class="head"><div><h2>Motion for ${esc(p.name)}</h2>${noSensor ? '<p class="warn">Windows is not reporting a motion sensor on this device.</p>' : '<p class="note">Uses the Ally\'s built-in gyro and accelerometer.</p>'}</div>
+    <div class="seg"><button data-do="recenter">Recentre</button><button data-do="calibrate">Calibrate</button></div></div>
+  <div class="scroll"><div class="cols">
+    <div class="panel compact">
+      ${seg("", "p.motion.mode", [["off", "Off"], ["aim_stick", "Aim: stick"], ["aim_mouse", "Aim: mouse"], ["steer", "Steer"], ["tilt", "Fly"]])}
+      <p class="note" style="margin:.5rem 0 .3rem">${{off: "Motion is not used.", aim_stick: "Turning the Ally nudges the right stick. Works in every controller game.", aim_mouse: "Turning the Ally moves the laptop's mouse. The most precise aim, for games that accept mouse and controller together.", steer: "Tilt left and right like a steering wheel to move the left stick.", tilt: "Tilt in any direction to move the left stick: roll to bank, tip forward and back to pitch."}[m.mode]}</p>
+      ${m.mode !== "off" ? seg("Active", "p.motion.when", [["always", "Always"], ["lt", "LT"], ["rt", "RT"], ["lb", "LB"], ["rb", "RB"]], "Hold the button to use motion") : ""}
+      ${m.mode !== "off" ? slider("Sensitivity", "p.motion.sens", .2, 4, .05, "x") : ""}
+      ${aim ? slider("Up and down", "p.motion.vratio", 0, 1.5, .05, "x", "Compared with left and right") : ""}
+      ${tilt ? slider("Full lock at", "p.motion.range", 10, 80, 1, "deg", "Tilt needed for full stick") : ""}
+      ${m.mode !== "off" ? slider("Smoothing", "p.motion.smooth", 0, 1, .05, "pct", "Steadier, slightly slower") : ""}
+      ${aim ? slider("Ignore below", "p.motion.deadzone", 0, 6, .1, "dps", "Hides hand tremor") : ""}
+      ${tilt ? slider("Dead zone", "p.motion.deadzone", 0, 10, .5, "deg") : ""}
+      ${m.mode === "aim_stick" ? slider("Game boost", "p.motion.floor", 0, .4, .01, "pct", "Skips the game's own dead zone") : ""}
+      ${aim ? seg("Turn by", "p.motion.axis", [["world", "Auto"], ["yaw", "Twisting"], ["roll", "Leaning"]], "Auto follows how you hold it") : ""}
+      ${m.mode !== "off" ? toggle("Flip left and right", "p.motion.invert_x") : ""}${aim || m.mode === "tilt" ? toggle("Flip up and down", "p.motion.invert_y") : ""}
+    </div>
+    <div class="panel"><h3>Live</h3>
+      <svg id="horizon" viewBox="-95 -50 190 100"><path class="tick" d="M-80 0h-10M80 0h10M0-40v-6M0 40v6"/><g id="hz"><path class="h" d="M-70 0H70"/><circle class="dot" r="4"/></g></svg>
+      <div class="bars">
+        <div class="bar"><span>Roll</span><div><i id="bRoll"></i></div><b class="num" id="vRoll">0°</b></div>
+        <div class="bar"><span>Pitch</span><div><i id="bPitch"></i></div><b class="num" id="vPitch">0°</b></div>
+        <div class="bar"><span>Turn rate</span><div><i id="bYaw"></i></div><b class="num" id="vYaw">0</b></div>
+      </div>
+      <p class="note" style="margin-top:.7rem" id="mostate"></p>
+    </div></div></div>`;
+}
+
+function renderLink() {
+  const on = st.conn === "on";
+  const list = found.length ? found.map(f => `<button class="btn" data-do="pick" data-ip="${esc(f.ip)}" data-name="${esc(f.name)}" aria-pressed="${f.ip === cfg.host}"><span>${esc(f.name)}<br><small class="num">${esc(f.ip)}</small></span><span>${f.ip === cfg.host ? (on ? "Connected" : "Selected") : "Use"}</span></button>`).join("")
+    : searching ? `<p class="note">Searching this network…</p>`
+    : `<p class="note">No laptop answered. Check that AllyPad Receiver is open on the laptop, that it was allowed through Windows Firewall, and that both devices are on the same Wi-Fi. If it still does not show up, tap Type an address and enter the address from the receiver window.</p>`;
+  const pin = (cfg.pin + "      ").slice(0, 6).split("").map(c => `<span>${c === " " ? "" : "•"}</span>`).join("");
+  $("#link").innerHTML = `<div class="head"><div><h2>Laptop</h2><p class="note" id="linkline"></p></div><div class="seg"><button data-do="full">${document.fullscreenElement ? "Leave full screen" : "Full screen"}</button><button data-do="quit">Quit AllyPad</button></div></div>
+  <div class="scroll"><div class="cols">
+    <div class="panel">${cfg.saved.length ? `<h3 style="margin-bottom:.5rem">Saved</h3><div class="saved">${cfg.saved.map((sv, i) => `<div><button class="btn" data-do="usesaved" data-i="${i}" aria-pressed="${sv.host === cfg.host}">${esc(sv.name)}<br><small class="num">${esc(sv.host)}</small></button><button class="btn quiet" data-do="forget" data-i="${i}">Forget</button></div>`).join("")}</div>` : ""}
+      <div class="head" style="margin-bottom:.6rem"><h3>Computers on this network</h3><button class="btn" data-do="discover">Search again</button></div>
+      <div class="found">${list}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:.8rem"><button class="btn quiet" data-do="addr">Type an address</button><button class="btn quiet" data-do="disconnect"${cfg.host ? "" : " disabled"}>Disconnect</button></div>
+      <h3 style="margin:.9rem 0 .4rem">PIN</h3><div style="display:grid;grid-template-columns:1fr auto;gap:.5rem"><div class="pinbox">${pin}</div><button class="btn" data-do="pin">Enter PIN</button></div>
+      <p class="note" style="margin-top:.4rem">The six digits shown in the AllyPad Receiver window on the laptop.</p></div>
+    <div class="panel compact"><h3>Link</h3>
+      <div class="kv" style="margin:.4rem 0 .6rem"><span>Delay to laptop</span><b id="kvRtt">–</b><span>Updates sent</span><b id="kvHz">–</b><span>Ally controller</span><b id="kvPad">–</b><span>Laptop controller driver</span><b id="kvDrv">–</b></div>
+      ${seg("Updates per second", "c.rate", [[125, "125"], [250, "250"], [500, "500"], [1000, "1000"]], "Higher is snappier, uses more battery")}
+      ${slider("Rumble", "c.rumble", 0, 1, .05, "pct", "From games on the laptop")}
+      ${toggle("Save power", "c.low_power", "While connected: Windows runs in its most efficient mode, and the screen dims when touch is locked")}
+      <h3 style="margin:.8rem 0 .4rem">Look</h3>
+      <div class="looks">${[["faceplate", "Faceplate", ["#1b2330", "#f5b83d", "#ece6d8"]], ["daylight", "Daylight", ["#dfe3e7", "#ff4a1c", "#14181d"]], ["arcade", "Arcade", ["#17123a", "#ff4fa3", "#45e3ff"]]]
+        .map(([id, name, sw]) => `<button class="btn" data-do="look" data-look="${id}" aria-pressed="${cfg.look === id}"><span>${name}</span><i>${sw.map(c => `<u style="background:${c}"></u>`).join("")}</i></button>`).join("")}</div>
+      <h3 style="margin:.9rem 0 .3rem">For the shortest delay</h3>
+      <p class="note">Wi-Fi through a busy router adds the most delay. Three ways round it, best first: join the Ally to the laptop's own hotspot (Windows Settings, Network, Mobile hotspot); plug both into the router with Ethernet adapters; or, if both machines have USB4 or Thunderbolt, connect them with one such cable. AllyPad searches every connection, so the laptop appears here either way.</p>
+    </div></div></div>`;
+  live();
+}
+
+/* ---- Live readouts (30 times a second) --------------------------------- */
+const CONN_TEXT = {off: "Offline", connecting: "Searching", on: "Connected", wrongpin: "Wrong PIN", lost: "Signal lost", full: "Laptop full"};
+function setScope(id, rx, ry, ox, oy, dz, click) {
+  const s = document.getElementById(id); if (!s) return;
+  s.children[2].setAttribute("r", dz * 46);
+  s.children[3].setAttribute("cx", rx * 46); s.children[3].setAttribute("cy", -ry * 46);
+  s.children[4].setAttribute("cx", ox * 46); s.children[4].setAttribute("cy", -oy * 46);
+  s.classList.toggle("clk", !!click);
+}
+function setBar(id, v, max) { const b = document.getElementById(id); if (!b) return; const w = Math.min(1, Math.abs(v) / max) * 50; b.style.width = w + "%"; b.style.left = (v < 0 ? 50 - w : 50) + "%"; }
+function live() {
+  const ls = $("#linkstat"); ls.dataset.conn = st.conn;
+  ls.children[1].textContent = CONN_TEXT[st.conn] || "Offline";
+  ls.children[2].textContent = st.conn === "on" && st.rtt != null ? st.rtt.toFixed(1) + " ms" : "";
+  $("#abat").textContent = st.bat != null ? `Ally ${st.bat}%${st.chg ? " charging" : ""}` : "";
+  $("#abat").style.color = st.bat != null && st.bat <= 15 && !st.chg ? "var(--bad)" : "";
+  const lb = $("#lockbat"); if (lb) lb.textContent = st.bat != null ? `Ally battery ${st.bat}%${st.chg ? ", charging" : ""}` : "";
+  if ($("#lock").classList.contains("on")) return; // nothing to redraw behind the lock
+  if (!cfg) return;
+  const lap = st.conn === "on" ? st.lap : null;
+  $("#vollabel").textContent = lap && lap.vol != null ? (lap.muted ? "Laptop muted" : `Laptop volume ${lap.vol}%`) : "Laptop volume";
+  const app = lap && lap.app || "";
+  if (app !== lastApp) { lastApp = app; if (tab === "types") renderTypes(); }
+  const p = prof(), r = st.raw, o = st.out;
+  if (tab === "play") {
+    setScope("scL", r[0], r[1], o[0], o[1], p.ls.dz, st.ob & 64); setScope("scR", r[2], r[3], o[2], o[3], p.rs.dz, st.ob & 128);
+    for (const [id, raw, out] of [["tgL", r[4], o[4]], ["tgR", r[5], o[5]]]) { const t = document.getElementById(id); if (t) { t.children[0].style.height = out * 100 + "%"; t.children[1].style.height = raw * 100 + "%"; } }
+    const ban = $("#banner"), txt = $("#bantxt");
+    if (ban) {
+      const ll = $("#lapline"); if (ll) ll.textContent = lap ? [lap.player > 1 ? `Player ${lap.player}` : "", lap.app ? `Laptop is running ${lap.app}` : "", lap.bat != null ? `laptop battery ${lap.bat}%${lap.chg ? ", charging" : ""}` : ""].filter(Boolean).join(", ") : "";
+      const msg = st.conn === "full" ? "The laptop already has four players." : st.conn === "wrongpin" ? "The laptop refused the PIN." : st.conn === "off" ? "Not connected to a laptop yet." : st.conn !== "on" ? "Looking for the laptop…" : st.pad === false ? "Windows does not see the Ally's controller. Set Armoury Crate to Gamepad mode." : st.drv === false ? "The laptop is missing the controller driver (ViGEmBus). Mouse and keys still work." : "";
+      ban.classList.toggle("on", !!msg); txt.textContent = msg;
+    }
+    const mt = $("#motxt"); if (mt && p.motion.mode !== "off") mt.classList.toggle("wait", !st.mo);
+  } else if (tab === "tune") {
+    setScope("tuL", r[0], r[1], o[0], o[1], p.ls.dz); setScope("tuR", r[2], r[3], o[2], o[3], p.rs.dz);
+    const bl = $("#backlive"); if (bl) bl.textContent = st.extra ? `Seeing the ${st.extra & 1 ? "left" : "right"} back button pressed.` : "Press a back button to check that AllyPad sees it.";
+  } else if (tab === "motion") {
+    const hz = $("#hz"); if (hz) {
+      hz.setAttribute("transform", `rotate(${-(st.roll || 0)})`);
+      hz.children[1].setAttribute("cy", Math.max(-40, Math.min(40, -(st.pitch || 0))));
+      setBar("bRoll", st.roll || 0, 60); setBar("bPitch", st.pitch || 0, 60); setBar("bYaw", st.yaw || 0, 200);
+      $("#vRoll").textContent = Math.round(st.roll || 0) + "°"; $("#vPitch").textContent = Math.round(st.pitch || 0) + "°"; $("#vYaw").textContent = Math.round(st.yaw || 0) + "°/s";
+      $("#mostate").textContent = st.cal ? "Calibrating. Keep it still." : p.motion.mode === "off" ? "" : st.mo ? "Motion is steering the output right now." : "Motion is waiting for its button.";
+    }
+  } else if (tab === "link") {
+    const l = $("#linkline"); if (l) {
+      l.textContent = st.conn === "on" ? `Connected to ${cfg.host_name || cfg.host}.` : st.conn === "full" ? "That laptop already has four players connected." : st.conn === "wrongpin" ? "The laptop refused that PIN. Enter the one shown in its window." : st.conn === "off" ? "Pick the laptop, then enter its PIN." : `Trying ${cfg.host_name || cfg.host}…`;
+      l.classList.toggle("warn", st.conn === "wrongpin");
+      $("#kvRtt").textContent = st.conn === "on" && st.rtt != null ? st.rtt.toFixed(1) + " ms" : "–";
+      $("#kvHz").textContent = st.conn === "on" ? Math.round(st.hz) + " per second" : "–";
+      $("#kvPad").textContent = st.pad ? "Found" : "Not found";
+      $("#kvDrv").textContent = st.conn !== "on" ? "–" : st.drv ? "Ready" : "Missing";
+    }
+  }
+}
+function curves() {
+  if (!cfg) return;
+  $$("svg.curve").forEach(s => {
+    const k = prof()[s.dataset.curve]; let d = "";
+    for (let i = 0; i <= 50; i++) {
+      const x = i / 50; let y = 0;
+      if (x > k.dz) { y = Math.min(1, Math.pow(Math.min(1, (x - k.dz) / (k.outer - k.dz)), k.curve) * k.sens); y = k.anti + (1 - k.anti) * y; }
+      d += (i ? "L" : "M") + (x * 100).toFixed(1) + " " + (60 - y * 58).toFixed(1);
+    }
+    s.firstElementChild.setAttribute("d", d);
+  });
+}
+
+function goFull() { if (!document.fullscreenElement && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen({navigationUI: "hide"}).catch(() => {}); }
+document.addEventListener("pointerup", () => { if (cfg && cfg.fullscreen) goFull(); });
+
+/* ---- Touch keys and mouse buttons -------------------------------------- */
+const held = new Map(); let mbHeld = 0, mbTap = 0, pointersDown = 0;
+document.addEventListener("pointerdown", () => pointersDown++, true);
+for (const ev of ["pointerup", "pointercancel"]) document.addEventListener(ev, () => pointersDown = Math.max(0, pointersDown - 1), true);
+function pulse(act) { const id = "p" + Math.random(); held.set(id, act); sendKeys(); setTimeout(() => { held.delete(id); sendKeys(); }, 60); }
+const sendKeys = () => send({t: "tk", a: [...new Set(held.values())]});
+const sendMb = () => send({t: "mb", b: mbHeld | mbTap});
+document.addEventListener("pointerdown", e => {
+  const k = e.target.closest("[data-act]"), m = e.target.closest("[data-mb]");
+  const kbk = e.target.closest("[data-kb]"), mod = e.target.closest("[data-mod]"), pl = e.target.closest("[data-pulse]");
+  if (kbk) {
+    // Armed modifiers ride along with the next key, then let go.
+    held.set(e.pointerId, "key:" + [...mods, kbk.dataset.kb].join("+")); kbk.classList.add("down"); kbk.setPointerCapture(e.pointerId); sendKeys();
+    if (mods.size) { mods.clear(); document.querySelectorAll("#kb .armed").forEach(b => b.classList.remove("armed")); }
+  } else if (mod) { const v = +mod.dataset.mod; mods.has(v) ? mods.delete(v) : mods.add(v); mod.classList.toggle("armed", mods.has(v)); }
+  else if (pl) pulse(pl.dataset.pulse);
+  else if (k) { held.set(e.pointerId, k.dataset.act); k.classList.add("down"); k.setPointerCapture(e.pointerId); sendKeys(); }
+  else if (m) { mbHeld |= +m.dataset.mb; m.classList.add("down"); m.setPointerCapture(e.pointerId); sendMb(); }
+});
+// Volume: a held key does not repeat when it is injected on the laptop,
+// so each step is its own short press, repeated while the button is held.
+const vol = new Map();
+function volStep(act) { held.set("vol", act); sendKeys(); setTimeout(() => { if (held.get("vol") === act) { held.delete("vol"); sendKeys(); } }, 45); }
+document.addEventListener("pointerdown", e => {
+  const b = e.target.closest("[data-vol]"); if (!b) return;
+  b.setPointerCapture(e.pointerId); b.classList.add("down");
+  volStep(b.dataset.vol);
+  if (!b.dataset.once) vol.set(e.pointerId, setTimeout(() => vol.set(e.pointerId, setInterval(() => volStep(b.dataset.vol), 110)), 350));
+});
+for (const ev of ["pointerup", "pointercancel"]) document.addEventListener(ev, e => {
+  const b = e.target.closest("[data-vol]"); if (b) b.classList.remove("down");
+  if (vol.has(e.pointerId)) { clearTimeout(vol.get(e.pointerId)); clearInterval(vol.get(e.pointerId)); vol.delete(e.pointerId); }
+});
+for (const ev of ["pointerup", "pointercancel"]) document.addEventListener(ev, e => {
+  const k = e.target.closest("[data-act]"), m = e.target.closest("[data-mb]");
+  if (held.delete(e.pointerId)) { if (k) k.classList.remove("down"); document.querySelectorAll("#kb .down").forEach(b => b.classList.remove("down")); sendKeys(); }
+  if (m) { mbHeld &= ~+m.dataset.mb; m.classList.remove("down"); sendMb(); }
+});
+
+/* ---- Touch lock: hold the corner button to get the screen back -------- */
+{
+  const u = $("#unlock"); let t = 0;
+  u.addEventListener("pointerdown", e => { u.setPointerCapture(e.pointerId); u.classList.add("holding"); t = setTimeout(() => { $("#lock").classList.remove("on"); u.classList.remove("holding"); send({t: "locked", on: false}); live(); }, 800); });
+  for (const ev of ["pointerup", "pointercancel"]) u.addEventListener(ev, () => { clearTimeout(t); u.classList.remove("holding"); });
+}
+
+/* ---- Trackpad ---------------------------------------------------------- */
+function bindPad() {
+  const pad = $("#pad"), cv = $("canvas", pad), cx = cv.getContext("2d");
+  const pts = new Map(); let trail = [], raf = 0, moved = 0, downT = 0, maxFingers = 0, lastTapT = 0, dragging = false, origin = null;
+  const css = n => getComputedStyle(document.body).getPropertyValue(n).trim();
+  function size() { const r = pad.getBoundingClientRect(), d = devicePixelRatio || 1; cv.width = r.width * d; cv.height = r.height * d; cx.setTransform(d, 0, 0, d, 0, 0); }
+  size(); new ResizeObserver(size).observe(pad);
+  function draw() {
+    const now = performance.now(), r = pad.getBoundingClientRect();
+    cx.clearRect(0, 0, r.width, r.height);
+    trail = trail.filter(t => now - t.t < 260);
+    const col = css("--live");
+    cx.lineCap = "round"; cx.strokeStyle = col; cx.fillStyle = col;
+    for (let i = 1; i < trail.length; i++) {
+      const a = trail[i - 1], b = trail[i]; if (a.id !== b.id) continue;
+      const age = 1 - (now - b.t) / 260;
+      cx.globalAlpha = age * .8; cx.lineWidth = 2 + age * 10;
+      cx.beginPath(); cx.moveTo(a.x, a.y); cx.lineTo(b.x, b.y); cx.stroke();
+    }
+    cx.globalAlpha = 1;
+    if (origin) {
+      const p = pts.get(origin.id);
+      cx.globalAlpha = .35; cx.lineWidth = 2; cx.beginPath(); cx.arc(origin.x, origin.y, origin.r, 0, 7); cx.stroke();
+      if (p) { cx.globalAlpha = 1; cx.beginPath(); cx.moveTo(origin.x, origin.y); cx.lineTo(p.x, p.y); cx.stroke(); }
+      cx.globalAlpha = 1;
+    }
+    for (const p of pts.values()) { cx.globalAlpha = .9; cx.beginPath(); cx.arc(p.x, p.y, 13, 0, 7); cx.fill(); }
+    cx.globalAlpha = 1;
+    raf = pts.size || trail.length ? requestAnimationFrame(draw) : 0;
+  }
+  const kick = () => { if (!raf) raf = requestAnimationFrame(draw); };
+  const mode = () => prof().trackpad.mode;
+  const local = e => { const r = pad.getBoundingClientRect(); return {x: e.clientX - r.left, y: e.clientY - r.top}; };
+  function tap(bit) { mbTap |= bit; sendMb(); setTimeout(() => { mbTap &= ~bit; sendMb(); }, 45); }
+
+  pad.addEventListener("pointerdown", e => {
+    if (mode() === "off") return;
+    pad.setPointerCapture(e.pointerId);
+    const p = local(e); pts.set(e.pointerId, {...p, t: e.timeStamp});
+    if (pts.size === 1) {
+      moved = 0; downT = e.timeStamp; maxFingers = 1;
+      if (mode() === "stick") { origin = {id: e.pointerId, ...p, r: Math.min(pad.clientWidth, pad.clientHeight) * .28}; }
+      else if (prof().trackpad.tap && e.timeStamp - lastTapT < 280) { dragging = true; mbTap |= 1; sendMb(); }
+    }
+    maxFingers = Math.max(maxFingers, pts.size);
+    kick();
+  });
+  const onMove = e => {
+    const prev = pts.get(e.pointerId); if (!prev) return;
+    const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+    for (const ce of evs.length ? evs : [e]) {
+      const p = local(ce), last = pts.get(e.pointerId);
+      const dx = p.x - last.x, dy = p.y - last.y, dt = Math.max(1, ce.timeStamp - last.t);
+      pts.set(e.pointerId, {...p, t: ce.timeStamp});
+      moved += Math.hypot(dx, dy);
+      trail.push({id: e.pointerId, x: p.x, y: p.y, t: performance.now()});
+      const tp = prof().trackpad;
+      if (tp.mode === "stick") {
+        if (origin && origin.id === e.pointerId) {
+          let vx = (p.x - origin.x) / origin.r, vy = -(p.y - origin.y) / origin.r; const m = Math.hypot(vx, vy);
+          if (m > 1) { vx /= m; vy /= m; }
+          send({t: "vs", x: vx, y: vy});
+        }
+      } else if (pts.size === 1) {
+        const speed = Math.hypot(dx, dy) / dt; // px per ms
+        const gain = 1.7 * tp.sens * (tp.accel ? Math.min(3.2, .65 + speed * .95) : 1);
+        if (dx || dy) send({t: "tp", x: dx * gain, y: dy * gain});
+      } else if (pts.size === 2) {
+        const dir = tp.natural ? -1 : 1;
+        send({t: "wh", v: dy * 3.2 * dir / 2 * tp.sens, h: -dx * 3.2 * dir / 2 * tp.sens});
+      }
+    }
+    kick();
+  };
+  pad.addEventListener("onpointerrawupdate" in pad ? "pointerrawupdate" : "pointermove", onMove);
+  const onUp = e => {
+    if (!pts.delete(e.pointerId)) return;
+    const tp = prof().trackpad;
+    if (origin && origin.id === e.pointerId) { origin = null; send({t: "vs", x: 0, y: 0, up: true}); }
+    if (pts.size === 0 && tp.mode === "mouse") {
+      if (dragging) { dragging = false; mbTap &= ~1; sendMb(); lastTapT = 0; }
+      else if (tp.tap && e.type === "pointerup" && e.timeStamp - downT < 230 && moved < 12) {
+        if (maxFingers >= 2) tap(2); else { tap(1); lastTapT = e.timeStamp; }
+      }
+    }
+    kick();
+  };
+  pad.addEventListener("pointerup", onUp); pad.addEventListener("pointercancel", onUp);
+}
+
+/* ---- Number pad -------------------------------------------------------- */
+function keypad(title, value, max, dots, done) {
+  const kp = $("#keypad"), disp = $("#kp-disp"); let v = value || "";
+  $("#kp-title").textContent = title;
+  const keys = ["1","2","3","4","5","6","7","8","9", dots ? "." : "", "0", "⌫"];
+  $("#kp-grid").innerHTML = keys.map(k => k ? `<button class="btn" data-k="${k}">${k}</button>` : "<span></span>").join("") + `<button class="btn quiet" data-k="cancel">Cancel</button><span></span><button class="btn primary" data-k="ok">Done</button>`;
+  const paint = () => disp.textContent = v || " ";
+  paint(); kp.classList.add("on");
+  $("#kp-grid").onclick = e => {
+    const b = e.target.closest("[data-k]"); if (!b) return; e.stopPropagation();
+    const k = b.dataset.k;
+    if (k === "ok") { kp.classList.remove("on"); done(v); }
+    else if (k === "cancel") kp.classList.remove("on");
+    else if (k === "⌫") v = v.slice(0, -1);
+    else if (v.length < max) v += k;
+    paint();
+  };
+}
+
+document.addEventListener("fullscreenchange", () => { if (tab === "link") renderLink(); });
+document.body.dataset.look = qs.get("look") || "daylight";
+show(tab);
+connect();
+if (navigator.wakeLock) { const lock = () => navigator.wakeLock.request("screen").catch(() => {}); lock(); document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && lock()); }
+</script>
+</body>
+</html>

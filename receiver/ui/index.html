@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AllyPad Receiver</title>
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<style>
+@font-face{font-family:"Bricolage";font-weight:500;src:url(/fonts/bricolage-grotesque-500.woff2) format("woff2");font-display:block}
+@font-face{font-family:"Bricolage";font-weight:700;src:url(/fonts/bricolage-grotesque-700.woff2) format("woff2");font-display:block}
+:root{--bg:#dfe3e7;--panel:#eef0f2;--raise:#fbfbfc;--line:#bcc4cc;--text:#14181d;--dim:#5b6570;--accent:#ff4a1c;--ok:#0b8a68;--bad:#c2261a;--ink:#14181d}
+*{box-sizing:border-box}
+html{font-size:clamp(9px,min(1.76vh,3.6vw),18px)}
+body{margin:0;min-height:100vh;display:flex;flex-direction:column;gap:.8rem;padding:1rem 1rem .9rem;background:var(--bg);color:var(--text);font:500 1rem/1.3 "Bricolage","Segoe UI Variable Display","Segoe UI",sans-serif;user-select:none;-webkit-user-select:none;overflow:hidden auto}
+h1,h2,p{margin:0}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+
+/* Tape-label header: name on a ruled card with an orange band */
+header{display:grid;grid-template-columns:1fr auto;align-items:end;gap:.6rem;padding:.75rem .9rem .7rem;border-radius:1.1rem;background:var(--raise);border:1px solid var(--line);position:relative;overflow:hidden}
+header::before{content:"";position:absolute;left:0;right:0;top:0;height:.55rem;background:repeating-linear-gradient(90deg,var(--accent) 0 2.2rem,var(--ink) 2.2rem 2.5rem)}
+header h1{font-size:1.45rem;font-weight:700;letter-spacing:-.02em;line-height:1.05;margin-top:.5rem}
+header p{color:var(--dim);font-size:.9rem}
+#lamp{display:flex;align-items:center;gap:.45rem;font-weight:700;font-size:.9rem;white-space:nowrap}
+#lamp i{width:.85rem;height:.85rem;border-radius:50%;background:var(--line);box-shadow:inset 0 0 0 2px rgba(0,0,0,.12)}
+#lamp[data-conn=on] i{background:var(--ok)}
+#lamp[data-conn=idle] i{background:var(--accent);animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){#lamp i{animation:none}}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:1.1rem;padding:.8rem .9rem}
+.cap{font-size:.85rem;color:var(--dim);margin-bottom:.45rem}
+
+/* The PIN as a tape counter */
+#counter{display:grid;grid-template-columns:repeat(6,1fr);gap:.35rem;padding:.45rem;border-radius:.8rem;background:var(--ink)}
+#counter span{position:relative;display:grid;place-items:center;aspect-ratio:.95;border-radius:.35rem;background:linear-gradient(#f7f7f8 0 49%,#d9dde1 49% 51%,#ececee 51%);color:var(--ink);font-size:2.4rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
+#addr{display:grid;grid-template-columns:auto 1fr;gap:.1rem .9rem;margin:.6rem 0 0;font-size:.92rem}
+#addr dt{color:var(--dim)}#addr dd{margin:0;font-weight:700;font-variant-numeric:tabular-nums;user-select:text;-webkit-user-select:text}
+
+#state{font-size:1.25rem;font-weight:700;letter-spacing:-.02em;line-height:1.15}
+#sub{color:var(--dim);font-size:.9rem;min-height:1.2em}
+#pad{display:block;width:100%;margin-top:.5rem}
+#pad .o{fill:none;stroke:var(--line);stroke-width:1.5}
+#pad .b{fill:var(--raise);stroke:var(--line);stroke-width:1.5}
+#pad .b.on{fill:var(--accent);stroke:var(--accent)}
+#pad .dot{fill:var(--accent)}
+#pad .fill{fill:var(--accent)}
+#pad text{font:700 9px "Bricolage",sans-serif;fill:var(--dim);text-anchor:middle;dominant-baseline:central;pointer-events:none}
+#pad .b.on+text{fill:#fff}
+
+.checks{display:grid;gap:.5rem}
+.check{display:grid;grid-template-columns:1fr auto;align-items:center;gap:.6rem;min-height:2.2rem}
+.check b{display:block;font-weight:700}
+.check small{display:block;color:var(--dim);font-size:.82rem;line-height:1.2}
+.tag{font-weight:700;font-size:.9rem;color:var(--ok)}
+.tag.bad{color:var(--bad)}.tag.wait{color:var(--dim)}
+.btn{min-height:2.5rem;padding:.35rem .9rem;border:1px solid var(--line);border-radius:.8rem;background:var(--raise);box-shadow:0 .2rem 0 #b3bcc5;font-weight:700}
+.btn:active{transform:translateY(.15rem);box-shadow:none}
+.btn.go{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 .2rem 0 #b9300c}
+#players{display:flex;gap:.35rem;margin-top:.5rem}
+#players button{flex:1;min-height:2.1rem;padding:.15rem .3rem;border:1px solid var(--line);border-radius:.6rem;background:none;font-weight:700;font-size:.82rem;color:var(--dim);line-height:1.1}
+#players button.here{color:var(--text);background:var(--raise)}
+#players button.sel{border-color:var(--accent);color:var(--accent)}
+.switch{width:3.6rem;height:2rem;border-radius:2rem;border:1px solid var(--line);background:var(--bg);position:relative;padding:0}
+.switch::after{content:"";position:absolute;top:.22rem;left:.22rem;width:1.5rem;height:calc(100% - .44rem);border-radius:2rem;background:var(--dim);transition:transform .12s}
+.switch[aria-pressed=true]{background:var(--accent);border-color:var(--accent)}
+.switch[aria-pressed=true]::after{transform:translateX(1.55rem);background:#fff}
+#err{display:none;border-color:var(--bad);color:var(--bad);font-weight:700}
+#err.on{display:block}
+
+#log{list-style:none;margin:0;padding:0;display:grid;gap:.15rem;font-size:.85rem;color:var(--dim);min-height:2.4em}
+#log li{display:grid;grid-template-columns:1fr auto;gap:.6rem}
+#log li:first-child{color:var(--text)}
+footer{margin-top:auto;display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>AllyPad Receiver</h1><p id="name">This laptop</p></div>
+  <div id="lamp" data-conn="waiting"><i></i><span>Waiting</span></div>
+</header>
+
+<div class="panel" id="err"></div>
+
+<section class="panel">
+  <p class="cap">Enter this PIN on the Ally</p>
+  <div id="counter" aria-label="Pairing PIN"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+  <dl id="addr"><dt>Address</dt><dd id="ips">–</dd><dt>Port</dt><dd id="port">–</dd></dl>
+</section>
+
+<section class="panel">
+  <h2 id="state">Waiting for the Ally</h2>
+  <p id="sub">Open AllyPad on the Ally and pick this laptop.</p>
+  <div id="players" aria-label="Players"></div>
+  <svg id="pad" viewBox="0 0 400 96" aria-label="Controller input arriving from the Ally">
+    <rect class="o" x="6" y="4" width="16" height="88" rx="4"/><rect class="fill" id="lt" x="6" y="92" width="16" height="0" rx="4"/>
+    <rect class="o" x="378" y="4" width="16" height="88" rx="4"/><rect class="fill" id="rt" x="378" y="92" width="16" height="0" rx="4"/>
+    <g data-b="256"><rect class="b" x="34" y="4" width="62" height="16" rx="8"/><text x="65" y="12">LB</text></g>
+    <g data-b="512"><rect class="b" x="304" y="4" width="62" height="16" rx="8"/><text x="335" y="12">RB</text></g>
+    <circle class="o" cx="65" cy="60" r="30"/><circle class="dot" id="ls" cx="65" cy="60" r="6"/>
+    <circle class="o" cx="255" cy="60" r="30"/><circle class="dot" id="rs" cx="255" cy="60" r="6"/>
+    <g data-b="1"><rect class="b" x="141" y="30" width="18" height="18" rx="4"/></g>
+    <g data-b="2"><rect class="b" x="141" y="72" width="18" height="18" rx="4"/></g>
+    <g data-b="4"><rect class="b" x="120" y="51" width="18" height="18" rx="4"/></g>
+    <g data-b="8"><rect class="b" x="162" y="51" width="18" height="18" rx="4"/></g>
+    <g data-b="32"><rect class="b" x="170" y="6" width="22" height="12" rx="6"/></g>
+    <g data-b="1024"><circle class="b" cx="200" cy="30" r="8"/></g>
+    <g data-b="16"><rect class="b" x="208" y="6" width="22" height="12" rx="6"/></g>
+    <g data-b="32768"><circle class="b" cx="335" cy="38" r="10"/><text x="335" y="38">Y</text></g>
+    <g data-b="4096"><circle class="b" cx="335" cy="82" r="10"/><text x="335" y="82">A</text></g>
+    <g data-b="16384"><circle class="b" cx="313" cy="60" r="10"/><text x="313" y="60">X</text></g>
+    <g data-b="8192"><circle class="b" cx="357" cy="60" r="10"/><text x="357" y="60">B</text></g>
+  </svg>
+</section>
+
+<section class="panel checks">
+  <div class="check"><div><b>Controller driver</b><small id="drvnote"></small></div><span id="drv"></span></div>
+  <div class="check"><div><b>Windows Firewall</b><small id="fwnote"></small></div><span id="fw"></span></div>
+  <div class="check"><div><b>Start with Windows</b><small id="autonote"></small></div><button class="switch" id="auto" aria-pressed="false" aria-label="Start with Windows"></button></div>
+</section>
+
+<p id="traynote" style="font-size:.82rem;color:var(--dim)"></p>
+<ul id="log"></ul>
+
+<footer>
+  <button class="btn" id="newpin">New PIN</button>
+  <button class="btn" id="quit">Quit</button>
+</footer>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+let ws = null, ever = false, lostAt = 0, st = {}, sel = 0, lastPlayers = "";
+const send = o => { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); };
+function stopped() { window.close(); document.body.innerHTML = '<p style="margin:auto">AllyPad Receiver has stopped. You can close this window.</p>'; }
+function connect() {
+  ws = new WebSocket(`ws://${location.host}/ws`);
+  ws.onopen = () => { ever = true; lostAt = 0; };
+  ws.onmessage = e => { const m = JSON.parse(e.data); if (m.t === "st" && m.pin) { st = m; paint(); } };
+  ws.onclose = () => {
+    if (ever) { lostAt = lostAt || Date.now(); if (Date.now() - lostAt > 2500) return stopped(); }
+    setTimeout(connect, 500);
+  };
+}
+const ago = s => s < 5 ? "just now" : s < 60 ? s + " s ago" : s < 3600 ? Math.floor(s / 60) + " min ago" : Math.floor(s / 3600) + " h ago";
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let lastPin = "", lastChecks = "", lastLog = "";
+function paint() {
+  $("#name").textContent = st.name;
+  if (st.pin !== lastPin) { lastPin = st.pin; [...$("#counter").children].forEach((c, i) => c.textContent = st.pin[i] || ""); }
+  $("#ips").innerHTML = st.ips.length ? st.ips.map(esc).join("<br>") : "No network found";
+  $("#port").textContent = st.port;
+  const err = $("#err"); err.classList.toggle("on", !!st.err); err.textContent = st.err ? st.err + " Close the other program, then start AllyPad Receiver again." : "";
+
+  const ps = st.players, cur = ps.find(x => x.n === sel) || ps[0];
+  const conn = !ps.length ? "waiting" : ps.every(x => x.idle) ? "idle" : "on";
+  const lamp = $("#lamp"); lamp.dataset.conn = conn;
+  lamp.lastElementChild.textContent = {waiting: "Waiting", on: ps.length > 1 ? ps.length + " players" : "Connected", idle: "Signal lost"}[conn];
+  $("#state").textContent = conn === "on" ? (ps.length > 1 ? `${ps.length} players connected` : "Connected to the Ally") : conn === "idle" ? "Signal lost" : "Waiting for the Ally";
+  $("#sub").textContent = conn === "on" ? `${st.rate} updates a second${st.app ? ", in front: " + st.app : ""}` : conn === "idle" ? "Inputs are released until the Ally comes back." : "Open AllyPad on the Ally and pick this laptop. Up to four can join.";
+  const pk = ps.map(x => x.n + x.ip + x.idle).join() + (cur ? cur.n : 0);
+  if (pk !== lastPlayers) {
+    lastPlayers = pk;
+    $("#players").innerHTML = [1, 2, 3, 4].map(n => { const x = ps.find(q => q.n === n); return `<button data-n="${n}" class="${x ? "here" : ""}${cur && cur.n === n ? " sel" : ""}"${x ? "" : " disabled"}>Player ${n}${x ? "<br>" + esc(x.ip) : ""}</button>`; }).join("");
+  }
+
+  const p = cur ? cur.pad : [0, 0, 0, 0, 0, 0, 0], live = !!cur && !cur.idle;
+  const bar = (id, v) => { const h = v / 255 * 88; const r = $(id); r.setAttribute("height", h); r.setAttribute("y", 92 - h); };
+  bar("#lt", live ? p[1] : 0); bar("#rt", live ? p[2] : 0);
+  const stick = (id, cx, x, y) => { const d = $(id); d.setAttribute("cx", cx + (live ? x : 0) / 32767 * 24); d.setAttribute("cy", 60 - (live ? y : 0) / 32767 * 24); };
+  stick("#ls", 65, p[3], p[4]); stick("#rs", 255, p[5], p[6]);
+  document.querySelectorAll("#pad [data-b]").forEach(g => g.firstElementChild.classList.toggle("on", live && (p[0] & +g.dataset.b) !== 0));
+  $("#ls").setAttribute("r", live && p[0] & 64 ? 9 : 6); $("#rs").setAttribute("r", live && p[0] & 128 ? 9 : 6);
+
+  const au = $("#auto"); au.setAttribute("aria-pressed", !!st.autostart);
+  $("#autonote").textContent = st.autostart ? "Starts quietly at sign-in, in the notification area." : "Have the laptop ready without opening this first.";
+  $("#traynote").textContent = st.tray ? "Closing this window keeps AllyPad running in the notification area by the clock. Click its icon there to open this again." : "";
+  const key = st.driver + st.fw;
+  if (key !== lastChecks) {
+    lastChecks = key;
+    $("#drv").outerHTML = st.driver ? '<span id="drv" class="tag">Ready</span>' : '<button id="drv" class="btn go">Install driver</button>';
+    $("#drvnote").textContent = st.driver ? "Games will see an Xbox controller." : "ViGEmBus is missing. Mouse and keys still work. Install it and approve the Windows prompts; this updates by itself when it is ready.";
+    $("#fw").outerHTML = st.fw === "ok" ? '<span id="fw" class="tag">Allowed</span>' : st.fw === "asking" ? '<span id="fw" class="tag wait">Asking…</span>' : st.fw === "missing" ? '<button id="fw" class="btn go">Allow</button>' : '<span id="fw" class="tag wait">Not checked</span>';
+    $("#fwnote").textContent = st.fw === "ok" ? "The Ally can reach this laptop." : st.fw === "asking" ? "Approve the administrator prompt." : st.fw === "missing" ? "Blocked. The Ally cannot find this laptop until you allow it." : "";
+  }
+  const lg = st.log.map(l => `<li><span>${esc(l.text)}</span><span>${ago(l.ago)}</span></li>`).join("");
+  if (lg !== lastLog) { lastLog = lg; $("#log").innerHTML = lg; }
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.id === "newpin") send({t: "newpin"});
+  else if (b.id === "quit") { ever = false; send({t: "quit"}); setTimeout(stopped, 200); }
+  else if (b.id === "drv") send({t: "driver"});
+  else if (b.id === "fw") send({t: "firewall"});
+  else if (b.id === "auto") send({t: "autostart", on: b.getAttribute("aria-pressed") !== "true"});
+  else if (b.dataset.n) { sel = +b.dataset.n; lastPlayers = ""; }
+});
+document.addEventListener("contextmenu", e => e.preventDefault());
+connect();
+</script>
+</body>
+</html>

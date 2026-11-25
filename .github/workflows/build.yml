@@ -1,0 +1,28 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Test
+        run: cargo test --workspace
+      - name: Build
+        run: cargo build --release
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force AllyPad | Out-Null
+          Copy-Item target/release/allypad-sender.exe, target/release/allypad-receiver.exe, README.md AllyPad/
+          Compress-Archive -Path AllyPad -DestinationPath AllyPad.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AllyPad
+          path: AllyPad.zip
