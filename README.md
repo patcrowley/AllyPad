@@ -1,5 +1,7 @@
 # AllyPad
 
+![AllyPad running on a handheld, with the receiver on a laptop](docs/mockup.png)
+
 Use a ROG Ally as a wireless controller for a Windows laptop, with a
 touchscreen trackpad, motion controls and per-game-type tuning.
 
