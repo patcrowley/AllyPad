@@ -3,10 +3,7 @@ name: Build
 on:
   push:
     branches: [main]
-    tags: ["v*"]
   pull_request:
-  release:
-    types: [published]
 
 jobs:
   windows:
@@ -30,14 +27,19 @@ jobs:
         with:
           name: AllyPad
           path: AllyPad.zip
+      # A release is published the first time a build of main carries a
+      # version (the VERSION file) that has no release yet. To cut a new
+      # release, change VERSION and RELEASE_NOTES.md and push.
       - name: Publish release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Attach the build to the release for this tag, creating the release if needed.
-          gh release upload $env:GITHUB_REF_NAME AllyPad.zip --clobber
-          if ($LASTEXITCODE -ne 0) {
-            gh release create $env:GITHUB_REF_NAME AllyPad.zip --title "AllyPad $env:GITHUB_REF_NAME" --notes-file RELEASE_NOTES.md
+          $tag = "v" + (Get-Content VERSION -Raw).Trim()
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "$tag is already released."
+            exit 0
           }
+          gh release create $tag AllyPad.zip --target $env:GITHUB_SHA --title "AllyPad $tag" --notes-file RELEASE_NOTES.md
